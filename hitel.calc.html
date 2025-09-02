@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hitel vs. Befektetés – Egylapos kalkulátor (v3)</title>
+<style>
+  :root {
+    --bg:#f5f7fb; --text:#0f172a; --muted:#64748b; --card:#ffffff; --border:#e2e8f0;
+    --accent:#2563eb; --accent2:#10b981; --shadow:0 8px 22px rgba(2,6,23,.08);
+  }
+  .dark {
+    --bg:#0b1220; --text:#e5e7eb; --muted:#94a3b8; --card:#0f172a; --border:#1f2a3a;
+    --accent:#60a5fa; --accent2:#34d399; --shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 56px}
+  header{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:16px}
+  h1{margin:0;font-size:clamp(20px,3.2vw,28px)}
+  .btn{height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;box-shadow:var(--shadow)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;border:0}
+  .grid{display:grid;gap:14px}
+  @media(min-width:860px){.grid.two{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 14px 16px;box-shadow:var(--shadow)}
+  .card h2{margin:0 0 10px;font-size:18px}
+  .inputs{display:grid;gap:10px;grid-template-columns:1fr}
+  @media(min-width:560px){.inputs{grid-template-columns:1fr 1fr}}
+  label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+  input[type=text]{height:42px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);padding:0 10px;font-size:15px;outline:none}
+  input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+  .kpis{display:grid;gap:10px;grid-template-columns:1fr}
+  @media(min-width:560px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{border:1px dashed var(--border);border-radius:12px;padding:10px 12px;background:rgba(0,0,0,.03)}
+  .dark .kpi{background:rgba(255,255,255,.03)}
+  .label{font-size:12px;color:var(--muted)}
+  .value{margin-top:3px;font-size:19px;font-weight:600}
+  .row{display:grid;grid-template-columns:110px 1fr 26px;gap:8px;align-items:center}
+  .suffix{font-size:14px;color:var(--muted)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  details{margin-top:8px;color:var(--muted);font-size:14px}
+  .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
+  .badge{display:inline-block;background:var(--accent2);color:#fff;border-radius:999px;padding:4px 10px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Hitel vs. Befektetés – Egylapos kalkulátor</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="themeBtn" class="btn">🌙 Sötét mód</button>
+      <button id="resetBtn" class="btn">↺ Alapértékek</button>
+    </div>
+  </header>
+
+  <div class="grid two">
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>1) Hitel – bemenetek</h2>
+        <span class="badge">annuitás • havi</span>
+      </div>
+      <div class="inputs">
+        <label>Felvett hitel (Ft)<input type="text" id="loanAmount" inputmode="numeric" placeholder="40 000 000"></label>
+        <label>Éves kamat (APR, %)<input type="text" id="apr" inputmode="decimal" placeholder="3"></label>
+        <label>Futamidő (év)<input type="text" id="termYears" inputmode="numeric" placeholder="20"></label>
+        <label>Havi támogatás (Ft)<input type="text" id="support" inputmode="numeric" placeholder="0"></label>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="label">Havi törlesztő (Ft)</div><div class="value" id="kpiPayment">–</div></div>
+        <div class="kpi"><div class="label">Kifizetés a horizontig (Ft)</div><div class="value" id="kpiTotalPaid">–</div></div>
+        <div class="kpi"><div class="label">Ebből kamat (Ft)</div><div class="value" id="kpiInterest">–</div></div>
+        <div class="kpi"><div class="label">Havi támogatás összege (Ft)</div><div class="value" id="kpiSupport">–</div></div>
+        <div class="kpi"><div class="label">Felhasználó tényleges kifizetése (Ft)</div><div class="value" id="kpiOutOfPocket">–</div></div>
+        <div class="kpi"><div class="label">Fennálló tőke (Ft)</div><div class="value" id="kpiRemaining">–</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>2) Befektetés – éves hozamok (APY)</h2>
+        <span id="horizonBadge" class="badge">– év</span>
+      </div>
+
+      <div class="inputs" style="margin-top:4px">
+        <label>Befektetett összeg (Ft)<input type="text" id="investAmount" inputmode="numeric" placeholder="40 000 000"></label>
+      </div>
+
+      <p id="investIntro" style="margin:8px 0;color:var(--muted)"></p>
+      <div id="ratesList" class="grid" style="gap:8px"></div>
+      <div class="toolbar">
+        <button id="addYear" class="btn primary">+ 1 év</button>
+        <button id="removeYear" class="btn">− Utolsó év</button>
+        <button id="defaultYears" class="btn">Alap hozamok</button>
+      </div>
+      <div class="kpis" style="margin-top:8px">
+        <div class="kpi"><div class="label">Időhorizont</div><div class="value" id="kpiYears">– év</div></div>
+        <div class="kpi"><div class="label">Befektetés jövőértéke (Ft)</div><div class="value" id="kpiFV">–</div></div>
+        <div class="kpi"><div class="label">Bruttó hozam (Ft)</div><div class="value" id="kpiGross">–</div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:14px">
+    <h2>3) Nettó összevetés</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Bruttó hozam − hitelkamat (Ft)</div><div class="value" id="kpiNetVsInterest">–</div></div>
+      <div class="kpi"><div class="label">Nettó pozíció, ha most végtörleszt (Ft)</div><div class="value" id="kpiNetSettle">–</div></div>
+      <div class="kpi"><div class="label">Felhasználó nettó kifizetése (Ft)</div><div class="value" id="kpiNetOut">–</div></div>
+    </div>
+    <details><summary>Feltételezések</summary>
+      <ul>
+        <li>Annuitásos törlesztés, havi periódus.</li>
+        <li>A támogatás a nettó kifizetésből vonódik le.</li>
+        <li>Befektetés: éves tőkésítés (APY), év/év eltérő hozamok.</li>
+        <li>Nettó pozíció = FV − fennálló tőke − addigi kamat.</li>
+        <li>Adók, díjak, infláció nincs modellezve.</li>
+      </ul>
+    </details>
+  </section>
+
+  <div class="footer">Egylapos, offline is működő kalkulátor (v3). Mentés: Fájl → Mentés másként…</div>
+</div>
+
+<script>
+  // ---------- Helpers ----------
+  const nf0 = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0 });
+  const nf2 = new Intl.NumberFormat('hu-HU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const $ = (s)=>document.querySelector(s);
+
+  // live thousand-grouping for integer money fields
+  function liveFormatMoneyInput(el, onChange){
+    el.addEventListener('input', ()=>{
+      const raw = el.value;
+      const cleaned = raw.replace(/[^0-9]/g,''); // only digits
+      const num = cleaned ? parseInt(cleaned,10) : 0;
+      el.value = cleaned ? nf0.format(num) : '';
+      onChange(num);
+      recalc();
+    });
+    el.addEventListener('blur', ()=>{
+      const cleaned = el.value.replace(/[^0-9]/g,'');
+      const num = cleaned ? parseInt(cleaned,10) : 0;
+      el.value = num ? nf0.format(num) : '0';
+      onChange(num);
+      recalc();
+    });
+  }
+  // percent (allow comma and dot) but keep display with comma
+  function liveFormatPercentInput(el, onChange){
+    el.addEventListener('input', ()=>{
+      const v = el.value.replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(/,/g,'.');
+      const num = parseFloat(v); onChange(isNaN(num)?0:num); recalc();
+    });
+    el.addEventListener('blur', ()=>{
+      const v = el.value.replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(/,/g,'.');
+      const num = parseFloat(v); el.value = isNaN(num)? '0' : String(num).replace('.',',');
+      onChange(isNaN(num)?0:num); recalc();
+    });
+  }
+
+  function pmt(rate, nper, pv){
+    if (rate===0) return pv/nper;
+    return (pv*rate)/(1 - Math.pow(1+rate,-nper));
+  }
+  const fmt0 = (x)=> nf0.format(x??0);
+
+  // ---------- Theme ----------
+  const themeBtn = $('#themeBtn');
+  const LS_KEY = 'hv_html_theme_v3';
+  function applyTheme(mode){
+    const dark = mode==='dark';
+    document.documentElement.classList.toggle('dark', dark);
+    themeBtn.textContent = dark? '☀️ Világos mód' : '🌙 Sötét mód';
+    themeBtn.setAttribute('aria-pressed', String(dark));
+  }
+  applyTheme(localStorage.getItem(LS_KEY) || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  themeBtn.addEventListener('click', ()=>{
+    const next = document.documentElement.classList.contains('dark')? 'light':'dark';
+    applyTheme(next); localStorage.setItem(LS_KEY,next);
+  });
+
+  // ---------- State ----------
+  const state = {
+    loanAmount: 40000000,
+    apr: 3,
+    termYears: 20,
+    support: 0,
+    investAmount: 40000000,
+    yearRates: [10,5,7.5,7.5],
+  };
+
+  const els = {
+    loanAmount: $('#loanAmount'),
+    apr: $('#apr'),
+    termYears: $('#termYears'),
+    support: $('#support'),
+    investAmount: $('#investAmount'),
+    ratesList: $('#ratesList'),
+    horizonBadge: $('#horizonBadge'),
+    investIntro: $('#investIntro'),
+    kpiPayment: $('#kpiPayment'),
+    kpiTotalPaid: $('#kpiTotalPaid'),
+    kpiInterest: $('#kpiInterest'),
+    kpiSupport: $('#kpiSupport'),
+    kpiOutOfPocket: $('#kpiOutOfPocket'),
+    kpiRemaining: $('#kpiRemaining'),
+    kpiFV: $('#kpiFV'),
+    kpiGross: $('#kpiGross'),
+    kpiYears: $('#kpiYears'),
+    kpiNetVsInterest: $('#kpiNetVsInterest'),
+    kpiNetSettle: $('#kpiNetSettle'),
+    kpiNetOut: $('#kpiNetOut'),
+    addYear: $('#addYear'),
+    removeYear: $('#removeYear'),
+    defaultYears: $('#defaultYears'),
+    resetBtn: $('#resetBtn')
+  };
+
+  function syncInputs(){
+    els.loanAmount.value = fmt0(state.loanAmount);
+    els.apr.value = String(state.apr).replace('.',',');
+    els.termYears.value = fmt0(state.termYears);
+    els.support.value = fmt0(state.support);
+    els.investAmount.value = fmt0(state.investAmount);
+    renderRates();
+    updateTexts();
+    recalc();
+  }
+
+  // hookup money/percent inputs with live formatting
+  liveFormatMoneyInput(els.loanAmount, (v)=>{ state.loanAmount = v; updateTexts(); });
+  liveFormatPercentInput(els.apr, (v)=>{ state.apr = v; });
+  liveFormatMoneyInput(els.termYears, (v)=>{ state.termYears = v; });
+  liveFormatMoneyInput(els.support, (v)=>{ state.support = v; });
+  liveFormatMoneyInput(els.investAmount, (v)=>{ state.investAmount = v; updateTexts(); });
+
+  function renderRates(){
+    els.ratesList.innerHTML='';
+    state.yearRates.forEach((rate, idx)=>{
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = '<div style=\"color:var(--muted);font-size:13px\">'+(idx+1)+'. év hozam</div>' +
+                      '<input type=\"text\" inputmode=\"decimal\" value=\"'+String(rate).replace('.',',')+'\" />'+
+                      '<div class=\"suffix\">%</div>';
+      const input = row.querySelector('input');
+      input.addEventListener('input', (e)=>{
+        const num = parseFloat(e.target.value.replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(/,/g,'.'));
+        state.yearRates[idx] = isNaN(num)?0:num;
+        recalc();
+      });
+      input.addEventListener('blur', (e)=>{
+        const num = parseFloat(e.target.value.replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(/,/g,'.'));
+        e.target.value = isNaN(num)? '0' : String(num).replace('.',',');
+      });
+      els.ratesList.appendChild(row);
+    });
+    els.kpiYears.textContent = state.yearRates.length + ' év';
+    els.horizonBadge.textContent = state.yearRates.length + ' év';
+  }
+
+  function updateTexts(){
+    els.investIntro.innerHTML = 'A befektetés kiinduló összege: <strong>'+fmt0(state.investAmount)+' Ft</strong>. ' +
+      'Az alábbi éves hozamokkal számolunk (éves tőkésítéssel).';
+  }
+
+  // buttons
+  els.addYear.addEventListener('click', ()=>{ state.yearRates.push(7); renderRates(); recalc(); });
+  els.removeYear.addEventListener('click', ()=>{ if(state.yearRates.length>1){ state.yearRates.pop(); renderRates(); recalc(); }});
+  els.defaultYears.addEventListener('click', ()=>{ state.yearRates=[10,5,7.5,7.5]; renderRates(); recalc(); });
+  els.resetBtn.addEventListener('click', ()=>{
+    state.loanAmount=40000000; state.apr=3; state.termYears=20; state.support=0; state.investAmount=40000000; state.yearRates=[10,5,7.5,7.5];
+    syncInputs();
+  });
+
+  // ---------- Math ----------
+  function amortization(principal, aprPct, termYears, horizonYears, monthlySupport){
+    const nMonths = Math.max(1, Math.round(termYears*12));
+    const hMonths = Math.max(1, Math.round(horizonYears*12));
+    const mRate = aprPct/100/12;
+    const pay = pmt(mRate, nMonths, principal);
+    let bal = principal, totI=0, totP=0, totS=0;
+    const months = Math.min(hMonths, nMonths);
+    for(let m=1;m<=months;m++){
+      const i = bal*mRate;
+      const princ = Math.min(pay - i, bal);
+      bal = Math.max(0, bal - princ);
+      totI += i; totP += pay; totS += monthlySupport;
+      if (bal<=0) break;
+    }
+    return {payment:pay,totalInterest:totI,totalPaid:totP,totalSupport:totS,outOfPocket:Math.max(0,totP-totS),remaining:bal};
+  }
+  function investFV(principal, rates){
+    let v = principal;
+    for(let r of rates){ v *= 1 + (r||0)/100; }
+    return {fv:v, gross:v - principal};
+  }
+
+  function recalc(){
+    const horizon = Math.max(1, state.yearRates.length);
+    const a = amortization(state.loanAmount, state.apr, state.termYears, horizon, state.support);
+    const inv = investFV(state.investAmount, state.yearRates);
+    const netVsI = inv.gross - a.totalInterest;
+    const netSettle = inv.fv - a.remaining - a.totalInterest;
+
+    els.kpiPayment.textContent = fmt0(a.payment);
+    els.kpiTotalPaid.textContent = fmt0(a.totalPaid);
+    els.kpiInterest.textContent = fmt0(a.totalInterest);
+    els.kpiSupport.textContent = fmt0(a.totalSupport);
+    els.kpiOutOfPocket.textContent = fmt0(a.outOfPocket);
+    els.kpiRemaining.textContent = fmt0(a.remaining);
+    els.kpiFV.textContent = fmt0(inv.fv);
+    els.kpiGross.textContent = fmt0(inv.gross);
+    els.kpiNetVsInterest.textContent = fmt0(netVsI);
+    els.kpiNetSettle.textContent = fmt0(netSettle);
+    els.kpiNetOut.textContent = fmt0(a.outOfPocket);
+  }
+
+  // init
+  syncInputs();
+</script>
+</body>
+</html>
